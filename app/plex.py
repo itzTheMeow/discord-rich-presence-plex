@@ -66,6 +66,7 @@ class PlexAlertListener(threading.Thread):
 	connectionCheckTimerInterval = 60
 	disconnectTimerInterval = 3
 	maximumIgnores = 2
+	totalConnectionFailures = 0
 
 	def __init__(self, token: str, serverConfig: config.Server):
 		super().__init__()
@@ -107,12 +108,17 @@ class PlexAlertListener(threading.Thread):
 						self.logger.info("Listening for alerts from user '%s'", self.listenForUser)
 						self.connectionCheckTimer = threading.Timer(self.connectionCheckTimerInterval, self.connectionCheck)
 						self.connectionCheckTimer.start()
+						self.totalConnectionFailures = 0
 						return
 				if not self.server:
 					raise Exception("Server not found")
 			except Exception as e:
 				self.logger.error("Failed to connect to %s '%s': %s", self.productName, self.serverConfig["name"], e)
 				self.logger.error("Reconnecting in 10 seconds")
+				self.totalConnectionFailures += 1
+				if self.totalConnectionFailures >= 5:
+					self.logger.error("Reached maximum of 5 connection failures, exiting")
+					exit(1)
 				time.sleep(10)
 
 	def disconnect(self) -> None:
